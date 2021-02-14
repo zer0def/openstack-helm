@@ -65,7 +65,7 @@ spec:
 {{- end }}
       initContainers:
 {{ tuple $envAll "backup" $mounts_cinder_backup_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
-{{- if $envAll.Values.manifests.certificates }}
+{{- if and $envAll.Values.manifests.certificates $dbTlsSecret }}
 {{- $destUid := default (default 0 (index (default (dict) (index (dict "envAll" $envAll "application" "cinder_backup" | include "helm-toolkit.snippets.kubernetes_pod_security_context" | fromYaml) "securityContext")) "runAsUser")) (index (default (dict) (index (dict "envAll" $envAll "application" "cinder_backup" "container" "cinder_backup" | include "helm-toolkit.snippets.kubernetes_container_security_context" | fromYaml) "securityContext")) "runAsUser") -}}
 {{- $destGid := default (default 0 (index (default (dict) (index (dict "envAll" $envAll "application" "cinder_backup" | include "helm-toolkit.snippets.kubernetes_pod_security_context" | fromYaml) "securityContext")) "runAsGroup")) (index (default (dict) (index (dict "envAll" $envAll "application" "cinder_backup" "container" "cinder_backup" | include "helm-toolkit.snippets.kubernetes_container_security_context" | fromYaml) "securityContext")) "runAsGroup") -}}
 {{- dict "uid" $destUid "gid" $destGid "tlsSecret" $dbTlsSecret "targetVolume" $dbTlsVolume | include "helm-toolkit.snippets.tls_owner_fix_init_container" | indent 8 }}
@@ -276,7 +276,7 @@ spec:
               subPath: iscsiadm
             {{- end }}
 {{- dict "enabled" $envAll.Values.manifests.certificates "name" $envAll.Values.endpoints.oslo_messaging.auth.admin.secret.tls.internal "path" "/etc/rabbitmq/certs" | include "helm-toolkit.snippets.tls_volume_mount" | indent 12 }}
-{{- if $envAll.Values.manifests.certificates }}
+{{- if and $envAll.Values.manifests.certificates $dbTlsSecret }}
             - name: {{ $dbTlsVolume }}
               mountPath: /etc/mysql/certs
               readOnly: true
@@ -346,7 +346,7 @@ spec:
           emptyDir: {}
         {{- end }}
 {{- dict "enabled" $envAll.Values.manifests.certificates "name" $envAll.Values.endpoints.oslo_messaging.auth.admin.secret.tls.internal | include "helm-toolkit.snippets.tls_volume" | indent 8 }}
-{{- if $envAll.Values.manifests.certificates }}
+{{- if and $envAll.Values.manifests.certificates $dbTlsSecret }}
         - name: {{ $dbTlsVolume }}
           emptyDir: {}
 {{- dict "enabled" $envAll.Values.manifests.certificates "name" $dbTlsSecret | include "helm-toolkit.snippets.tls_volume" | indent 8 }}

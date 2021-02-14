@@ -57,7 +57,7 @@ spec:
       terminationGracePeriodSeconds: {{ .Values.pod.lifecycle.termination_grace_period.horizon.timeout | default "30" }}
       initContainers:
 {{ tuple $envAll "dashboard" $mounts_horizon_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
-{{- if $envAll.Values.manifests.certificates }}
+{{- if and $envAll.Values.manifests.certificates $dbTlsSecret }}
 {{- $destUid := default (default 0 (index (default (dict) (index (dict "envAll" $envAll "application" "horizon" | include "helm-toolkit.snippets.kubernetes_pod_security_context" | fromYaml) "securityContext")) "runAsUser")) (index (default (dict) (index (dict "envAll" $envAll "application" "horizon" "container" "horizon" | include "helm-toolkit.snippets.kubernetes_container_security_context" | fromYaml) "securityContext")) "runAsUser") -}}
 {{- $destGid := default (default 0 (index (default (dict) (index (dict "envAll" $envAll "application" "horizon" | include "helm-toolkit.snippets.kubernetes_pod_security_context" | fromYaml) "securityContext")) "runAsGroup")) (index (default (dict) (index (dict "envAll" $envAll "application" "horizon" "container" "horizon" | include "helm-toolkit.snippets.kubernetes_container_security_context" | fromYaml) "securityContext")) "runAsGroup") -}}
 {{- dict "uid" $destUid "gid" $destGid "tlsSecret" $dbTlsSecret "targetVolume" $dbTlsVolume | include "helm-toolkit.snippets.tls_owner_fix_init_container" | indent 8 }}
@@ -137,7 +137,7 @@ spec:
               subPath: {{ base $policyFile }}
               readOnly: true
             {{- end }}
-{{- if $envAll.Values.manifests.certificates }}
+{{- if and $envAll.Values.manifests.certificates $dbTlsSecret }}
             - name: {{ $dbTlsVolume }}
               mountPath: /etc/mysql/certs
               readOnly: true
@@ -159,7 +159,7 @@ spec:
           secret:
             secretName: horizon-etc
             defaultMode: 0444
-{{- if $envAll.Values.manifests.certificates }}
+{{- if and $envAll.Values.manifests.certificates $dbTlsSecret }}
         - name: {{ $dbTlsVolume }}
           emptyDir: {}
 {{- dict "enabled" $envAll.Values.manifests.certificates "name" $dbTlsSecret | include "helm-toolkit.snippets.tls_volume" | indent 8 }}

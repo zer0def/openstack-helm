@@ -25,7 +25,7 @@ volumes:
 {{- if and .Values.manifests.job_bootstrap .Values.bootstrap.enabled }}
 {{- $podVolumes := tuple . | include "glance.templates._job_bootstrap.pod_volumes" | toString | fromYaml }}
 {{- $bootstrapJob := dict "envAll" . "serviceName" "glance" "keystoneUser" .Values.bootstrap.ks_user "logConfigFile" .Values.conf.glance.DEFAULT.log_config_append "podVolMounts" $podVolumes.volumeMounts "podVols" $podVolumes.volumes -}}
-{{- if .Values.manifests.certificates -}}
+{{- if and .Values.manifests.certificates (index .Values.endpoints.identity.auth (default "admin" (index (default (dict) (index .Values "bootstrap")) "ks_user")) "cacert") -}}
 {{- $_ := set $bootstrapJob "tlsSecret" .Values.secrets.tls.image.api.internal -}}
 {{- end -}}
 {{ $bootstrapJob | include "helm-toolkit.manifests.job_bootstrap" }}

@@ -67,7 +67,7 @@ spec:
       terminationGracePeriodSeconds: {{ .Values.pod.lifecycle.termination_grace_period.metadata.timeout | default "30" }}
       initContainers:
 {{ tuple $envAll "api_metadata" $mounts_nova_api_metadata_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
-{{- if .Values.manifests.certificates }}
+{{- if and .Values.manifests.certificates $dbTlsSecret }}
 {{- $destUid := default (default 0 (index (default (dict) (index (dict "envAll" $envAll "application" "nova" | include "helm-toolkit.snippets.kubernetes_pod_security_context" | fromYaml) "securityContext")) "runAsUser")) (index (default (dict) (index (dict "envAll" $envAll "application" "nova" "container" "nova_api" | include "helm-toolkit.snippets.kubernetes_container_security_context" | fromYaml) "securityContext")) "runAsUser") -}}
 {{- $destGid := default (default 0 (index (default (dict) (index (dict "envAll" $envAll "application" "nova" | include "helm-toolkit.snippets.kubernetes_pod_security_context" | fromYaml) "securityContext")) "runAsGroup")) (index (default (dict) (index (dict "envAll" $envAll "application" "nova" "container" "nova_api" | include "helm-toolkit.snippets.kubernetes_container_security_context" | fromYaml) "securityContext")) "runAsGroup") -}}
 {{- dict "uid" $destUid "gid" $destGid "tlsSecret" $dbTlsSecret "targetVolume" $dbTlsVolume | include "helm-toolkit.snippets.tls_owner_fix_init_container" | indent 8 }}
@@ -190,7 +190,7 @@ spec:
               subPath: mpm_event.conf
               readOnly: true
             {{- end }}
-            {{- if .Values.manifests.certificates }}
+            {{- if and .Values.manifests.certificates $dbTlsSecret }}
             - name: {{ $dbTlsVolume }}
               mountPath: /etc/mysql/certs
               readOnly: true
@@ -201,10 +201,6 @@ spec:
       volumes:
         - name: pod-tmp
           emptyDir: {}
-        {{- if .Values.manifests.certificates_pod }}
-        - name: wsgi-nova
-          emptyDir: {}
-        {{- end }}
         - name: nova-bin
           configMap:
             name: nova-bin
@@ -219,7 +215,11 @@ spec:
           emptyDir: {}
         - name: run-apache
           emptyDir: {}
-        {{- if .Values.manifests.certificates }}
+        {{- if .Values.manifests.certificates_pod }}
+        - name: wsgi-nova
+          emptyDir: {}
+        {{- end }}
+        {{- if and .Values.manifests.certificates $dbTlsSecret }}
         - name: {{ $dbTlsVolume }}
           emptyDir: {}
 {{- dict "enabled" .Values.manifests.certificates "name" $dbTlsSecret | include "helm-toolkit.snippets.tls_volume" | indent 8 }}

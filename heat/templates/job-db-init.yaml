@@ -15,7 +15,7 @@ limitations under the License.
 {{- if .Values.manifests.job_db_init }}
 {{- $dbInitJob := dict "envAll" . "serviceName" "heat" -}}
 {{- $dbTlsSecret := default (default "" (index .Values.endpoints.oslo_db "tlsSecret")) (index (default (dict) (index (default (dict) (index .Values.endpoints.oslo_db.auth.admin "secret")) "tls")) "internal") }}
-{{- if .Values.manifests.certificates -}}
+{{- if and .Values.manifests.certificates $dbTlsSecret -}}
 {{- $_ := set $dbInitJob "dbAdminTlsSecret" $dbTlsSecret -}}
 {{- end -}}
 {{ $dbInitJob | include "helm-toolkit.manifests.job_db_init_mysql" }}

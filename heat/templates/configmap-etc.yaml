@@ -74,7 +74,8 @@ limitations under the License.
 
 {{- if empty .Values.conf.heat.database.connection -}}
 {{- $connection := tuple "oslo_db" "internal" "heat" "mysql" . | include "helm-toolkit.endpoints.authenticated_endpoint_uri_lookup" -}}
-{{- if .Values.manifests.certificates -}}
+{{- $dbTlsSecret := default (default "" (index .Values.endpoints.oslo_db "tlsSecret")) (index (default (dict) (index (default (dict) (index .Values.endpoints.oslo_db.auth.admin "secret")) "tls")) "internal") }}
+{{- if and .Values.manifests.certificates $dbTlsSecret -}}
 {{- $dbEngine := first (splitList "+" (first (splitList ":" .Values.endpoints.oslo_db.scheme))) }}
 {{- if eq $dbEngine "mysql" -}}
 {{- $connection = printf "%s?charset=utf8&ssl_ca=/etc/mysql/certs/ca.crt&ssl_key=/etc/mysql/certs/tls.key&ssl_cert=/etc/mysql/certs/tls.crt&ssl_verify_cert" $connection -}}

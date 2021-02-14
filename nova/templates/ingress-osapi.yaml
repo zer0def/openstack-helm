@@ -17,7 +17,7 @@ limitations under the License.
 {{- $ingressOpts := dict "envAll" $envAll "backendService" "osapi" "backendServiceType" "compute" "backendPort" "n-api" -}}
 {{- $secretName := $envAll.Values.secrets.tls.compute.osapi.internal -}}
 {{- if and .Values.manifests.certificates $secretName }}
-{{- $_ := set $ingressOpts "certIssuer" .Values.endpoints.compute.host_fqdn_override.default.tls.issuerRef.name -}}
+{{- $ingressOpts = mergeOverwrite $ingressOpts (dict "certIssuer" .Values.endpoints.compute.host_fqdn_override.default.tls.issuerRef.name "certIssuerType" (default "Issuer" (index .Values.endpoints.compute.host_fqdn_override.default "tls" "issuerRef" "kind"))) -}}
 {{- end }}
 {{ $ingressOpts | include "helm-toolkit.manifests.ingress" }}
 {{- end }}

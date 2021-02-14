@@ -62,7 +62,7 @@ spec:
             {{ .Values.labels.job.node_selector_key }}: {{ .Values.labels.job.node_selector_value }}
           initContainers:
 {{ tuple $envAll "engine_cleaner" $mounts_heat_engine_cleaner_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 12 }}
-{{- if $envAll.Values.manifests.certificates }}
+{{- if and $envAll.Values.manifests.certificates $dbTlsSecret }}
 {{- $destUid := default 0 (index (default (dict) (index (dict "envAll" $envAll "application" "engine_cleaner" | include "helm-toolkit.snippets.kubernetes_pod_security_context" | fromYaml) "securityContext")) "runAsUser") -}}
 {{- $destGid := default 0 (index (default (dict) (index (dict "envAll" $envAll "application" "engine_cleaner" | include "helm-toolkit.snippets.kubernetes_pod_security_context" | fromYaml) "securityContext")) "runAsGroup") -}}
 {{- dict "uid" $destUid "gid" $destGid "tlsSecret" $dbTlsSecret "targetVolume" $dbTlsVolume | include "helm-toolkit.snippets.tls_owner_fix_init_container" | indent 12 }}
@@ -93,7 +93,7 @@ spec:
                 subPath: {{ base .Values.conf.heat.DEFAULT.log_config_append }}
                 readOnly: true
               {{ end }}
-{{- if $envAll.Values.manifests.certificates }}
+{{- if and $envAll.Values.manifests.certificates $dbTlsSecret }}
               - name: {{ $dbTlsVolume }}
                 mountPath: /etc/mysql/certs
                 readOnly: true
@@ -108,7 +108,7 @@ spec:
               secret:
                 secretName: heat-etc
                 defaultMode: 0444
-{{- if $envAll.Values.manifests.certificates }}
+{{- if and $envAll.Values.manifests.certificates $dbTlsSecret }}
             - name: {{ $dbTlsVolume }}
               emptyDir: {}
 {{- dict "enabled" $envAll.Values.manifests.certificates "name" $dbTlsSecret | include "helm-toolkit.snippets.tls_volume" | indent 12 }}

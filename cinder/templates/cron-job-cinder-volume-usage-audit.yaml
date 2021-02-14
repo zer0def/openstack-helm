@@ -57,7 +57,7 @@ spec:
             {{ .Values.labels.job.node_selector_key }}: {{ .Values.labels.job.node_selector_value }}
           initContainers:
 {{ tuple $envAll "volume_usage_audit" $mounts_cinder_volume_usage_audit_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 12 }}
-{{- if $envAll.Values.manifests.certificates }}
+{{- if and $envAll.Values.manifests.certificates $dbTlsSecret }}
 {{- $destUid := default 0 (index (default (dict) (index (dict "envAll" $envAll "application" "volume_usage_audit" | include "helm-toolkit.snippets.kubernetes_pod_security_context" | fromYaml) "securityContext")) "runAsUser") -}}
 {{- $destGid := default 0 (index (default (dict) (index (dict "envAll" $envAll "application" "volume_usage_audit" | include "helm-toolkit.snippets.kubernetes_pod_security_context" | fromYaml) "securityContext")) "runAsGroup") -}}
 {{- dict "uid" $destUid "gid" $destGid "tlsSecret" $dbTlsSecret "targetVolume" $dbTlsVolume | include "helm-toolkit.snippets.tls_owner_fix_init_container" | indent 12 }}
@@ -88,7 +88,7 @@ spec:
                   mountPath: /tmp/volume-usage-audit.sh
                   subPath: volume-usage-audit.sh
                   readOnly: true
-{{- if $envAll.Values.manifests.certificates }}
+{{- if and $envAll.Values.manifests.certificates $dbTlsSecret }}
                 - name: {{ $dbTlsVolume }}
                   mountPath: /etc/mysql/certs
                   readOnly: true
@@ -107,7 +107,7 @@ spec:
               configMap:
                 name: cinder-bin
                 defaultMode: 0555
-{{- if $envAll.Values.manifests.certificates }}
+{{- if and $envAll.Values.manifests.certificates $dbTlsSecret }}
             - name: {{ $dbTlsVolume }}
               emptyDir: {}
 {{- dict "enabled" $envAll.Values.manifests.certificates "name" $dbTlsSecret | include "helm-toolkit.snippets.tls_volume" | indent 12 }}

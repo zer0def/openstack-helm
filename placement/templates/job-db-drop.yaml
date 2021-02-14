@@ -18,7 +18,7 @@ limitations under the License.
 {{- $serviceName := "placement" -}}
 {{- $dbDropJob := dict "envAll" . "serviceName" $serviceName -}}
 {{- $dbTlsSecret := default (default "" (index .Values.endpoints.oslo_db "tlsSecret")) (index (default (dict) (index (default (dict) (index .Values.endpoints.oslo_db.auth.admin "secret")) "tls")) "internal") }}
-{{- if .Values.manifests.certificates -}}
+{{- if and .Values.manifests.certificates $dbTlsSecret -}}
 {{- $_ := set $dbDropJob "dbAdminTlsSecret" $dbTlsSecret -}}
 {{- end -}}
 {{ $dbDropJob | include "helm-toolkit.manifests.job_db_drop_mysql" }}

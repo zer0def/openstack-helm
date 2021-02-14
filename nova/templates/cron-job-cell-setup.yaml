@@ -52,7 +52,7 @@ spec:
             {{ .Values.labels.job.node_selector_key }}: {{ .Values.labels.job.node_selector_value }}
           initContainers:
 {{ tuple $envAll "cell_setup" list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 12 }}
-{{- if .Values.manifests.certificates }}
+{{- if and .Values.manifests.certificates $dbTlsSecret }}
 {{- $destUid := default 0 (index (default (dict) (index (dict "envAll" $envAll "application" "cell_setup" | include "helm-toolkit.snippets.kubernetes_pod_security_context" | fromYaml) "securityContext")) "runAsUser") -}}
 {{- $destGid := default 0 (index (default (dict) (index (dict "envAll" $envAll "application" "cell_setup" | include "helm-toolkit.snippets.kubernetes_pod_security_context" | fromYaml) "securityContext")) "runAsGroup") -}}
 {{- dict "uid" $destUid "gid" $destGid "tlsSecret" $dbTlsSecret "targetVolume" $dbTlsVolume | include "helm-toolkit.snippets.tls_owner_fix_init_container" | indent 12 }}
@@ -87,7 +87,7 @@ spec:
                   mountPath: /etc/nova/policy.yaml
                   subPath: policy.yaml
                   readOnly: true
-{{- if .Values.manifests.certificates }}
+{{- if and .Values.manifests.certificates $dbTlsSecret }}
                 - name: {{ $dbTlsVolume }}
                   mountPath: /etc/mysql/certs
                   readOnly: true
@@ -105,7 +105,7 @@ spec:
               configMap:
                 name: nova-bin
                 defaultMode: 0555
-{{- if .Values.manifests.certificates }}
+{{- if and .Values.manifests.certificates $dbTlsSecret }}
             - name: {{ $dbTlsVolume }}
               emptyDir: {}
 {{- dict "enabled" .Values.manifests.certificates "name" $dbTlsSecret | include "helm-toolkit.snippets.tls_volume" | indent 12 }}
