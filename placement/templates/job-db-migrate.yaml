@@ -14,6 +14,10 @@ limitations under the License.
 
 {{- if .Values.manifests.job_db_migrate }}
 {{- $envAll := . }}
+
+{{- $dbTlsSecret := default (default "" (index .Values.endpoints.oslo_db "tlsSecret")) (index (default (dict) (index (default (dict) (index .Values.endpoints.oslo_db.auth.admin "secret")) "tls")) "internal") }}
+{{- $dbTlsVolume := "db-tls" }}
+
 {{- $serviceAccountName := "placement-db-migrate" -}}
 {{- $service := "db_migrate" -}}
 {{ tuple $envAll $service $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
@@ -39,6 +43,11 @@ spec:
         {{ .Values.labels.job.node_selector_key }}: {{ .Values.labels.job.node_selector_value }}
       initContainers:
 {{ tuple $envAll $service list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+{{- if .Values.manifests.certificates }}
+{{- $destUid := default 0 (index (default (dict) (index (dict "envAll" $envAll "application" "placement" | include "helm-toolkit.snippets.kubernetes_pod_security_context" | fromYaml) "securityContext")) "runAsUser") -}}
+{{- $destGid := default 0 (index (default (dict) (index (dict "envAll" $envAll "application" "placement" | include "helm-toolkit.snippets.kubernetes_pod_security_context" | fromYaml) "securityContext")) "runAsGroup") -}}
+{{- dict "uid" $destUid "gid" $destGid "tlsSecret" $dbTlsSecret "targetVolume" $dbTlsVolume | include "helm-toolkit.snippets.tls_owner_fix_init_container" | indent 8 }}
+{{- end }}
       containers:
         - name: placement-mysql-migration
 {{ tuple $envAll $service | include "helm-toolkit.snippets.image" | indent 10 }}
@@ -47,7 +56,7 @@ spec:
           command:
             - /tmp/db-migrate.sh
           env:
-{{- with $env := dict "ksUserSecret" $envAll.Values.secrets.identity.admin "useCA" .Values.manifests.certificates }}
+{{- with $env := dict "ksUserSecret" $envAll.Values.secrets.identity.admin "useCA" (index $envAll.Values.endpoints.identity.auth (default "admin" (index (default (dict) (index $envAll.Values "bootstrap")) "ks_user")) "cacert") }}
 {{- include "helm-toolkit.snippets.keystone_openrc_env_vars" $env | indent 12 }}
 {{- end }}
             - name: NOVA_API_USER
@@ -82,7 +91,11 @@ spec:
               subPath: placement.conf
               readOnly: true
 {{ dict "enabled" .Values.manifests.certificates "name" $envAll.Values.secrets.tls.placement.api.internal | include "helm-toolkit.snippets.tls_volume_mount"  | indent 12 }}
-{{- dict "enabled" .Values.manifests.certificates "name" .Values.endpoints.oslo_db.auth.admin.secret.tls.internal "path" "/etc/mysql/certs" | include "helm-toolkit.snippets.tls_volume_mount" | indent 12 }}
+{{- if .Values.manifests.certificates }}
+            - name: {{ $dbTlsVolume }}
+              mountPath: /etc/mysql/certs
+              readOnly: true
+{{- end }}
       volumes:
         - name: pod-tmp
           emptyDir: {}
@@ -94,6 +107,10 @@ spec:
           secret:
             secretName: placement-etc
             defaultMode: 0444
-{{- dict "enabled" .Values.manifests.certificates "name" .Values.endpoints.oslo_db.auth.admin.secret.tls.internal | include "helm-toolkit.snippets.tls_volume" | indent 8 }}
+{{- if .Values.manifests.certificates }}
+        - name: {{ $dbTlsVolume }}
+          emptyDir: {}
+{{- dict "enabled" .Values.manifests.certificates "name" $dbTlsSecret | include "helm-toolkit.snippets.tls_volume" | indent 8 }}
+{{- end }}
 {{- dict "enabled" .Values.manifests.certificates "name" .Values.secrets.tls.placement.api.internal | include "helm-toolkit.snippets.tls_volume" | indent 8 }}
 {{- end }}
