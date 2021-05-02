@@ -16,8 +16,9 @@ limitations under the License.
 {{- $serviceName := "glance" -}}
 {{- $dbToInit := dict "adminSecret" .Values.secrets.oslo_db.admin "configFile" (printf "/etc/%s/%s.conf" $serviceName "glance-api" ) "logConfigFile" (printf "/etc/%s/logging.conf" $serviceName ) "configDbSection" "database" "configDbKey" "connection" -}}
 {{- $dbInitJob := dict "envAll" . "serviceName" $serviceName "dbToInit" $dbToInit -}}
+{{- $dbTlsSecret := default (default "" (index .Values.endpoints.oslo_db "tlsSecret")) (index (default (dict) (index (default (dict) (index .Values.endpoints.oslo_db.auth.admin "secret")) "tls")) "internal") }}
 {{- if .Values.manifests.certificates -}}
-{{- $_ := set $dbInitJob "dbAdminTlsSecret" .Values.endpoints.oslo_db.auth.admin.secret.tls.internal -}}
+{{- $_ := set $dbInitJob "dbAdminTlsSecret" $dbTlsSecret -}}
 {{- end -}}
 {{ $dbInitJob | include "helm-toolkit.manifests.job_db_init_mysql" }}
 {{- end }}
