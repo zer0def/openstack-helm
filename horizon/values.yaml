@@ -372,7 +372,7 @@ conf:
         DATABASES = {
             'default': {
                 # Database configuration here
-                'ENGINE': 'django.db.backends.mysql',
+                'ENGINE': '{{ .Values.endpoints.oslo_db.auth.horizon.engine }}',
                 'NAME': '{{ .Values.endpoints.oslo_db.path | base }}',
                 'USER': '{{ .Values.endpoints.oslo_db.auth.horizon.username }}',
                 'PASSWORD': '{{ .Values.endpoints.oslo_db.auth.horizon.password }}',
@@ -380,11 +380,18 @@ conf:
                 'default-character-set': 'utf8',
                 {{- if .Values.manifests.certificates }}
                 'OPTIONS':{
+                    {{- if eq .Values.endpoints.oslo_db.auth.horizon.engine "django.db.backends.mysql" }}
                     'ssl': {
                         'ca': '/etc/mysql/certs/ca.crt',
                         'cert': '/etc/mysql/certs/tls.crt',
                         'key': '/etc/mysql/certs/tls.key'
                     }
+                    {{- else if eq .Values.endpoints.oslo_db.auth.horizon.engine "django.db.backends.postgresql" }}
+                    'sslmode': 'verify-full',
+                    'sslrootcert': '/etc/mysql/certs/ca.crt',
+                    'sslcert': '/etc/mysql/certs/tls.crt',
+                    'sslkey': '/etc/mysql/certs/tls.key'
+                    {{- end }}
                 },
                 {{- end }}
                 'PORT': '{{ tuple "oslo_db" "internal" "mysql" . | include "helm-toolkit.endpoints.endpoint_port_lookup" }}'
@@ -2271,6 +2278,7 @@ endpoints:
       horizon:
         username: horizon
         password: password
+        engine: "django.db.backends.mysql"
     hosts:
       default: mariadb
     host_fqdn_override:

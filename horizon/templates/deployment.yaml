@@ -18,6 +18,9 @@ limitations under the License.
 {{- $mounts_horizon := .Values.pod.mounts.horizon.horizon }}
 {{- $mounts_horizon_init := .Values.pod.mounts.horizon.init_container }}
 
+{{- $dbTlsSecret := default (default "" (index $envAll.Values.endpoints.oslo_db "tlsSecret")) (index (default (dict) (index (default (dict) (index $envAll.Values.endpoints.oslo_db.auth.admin "secret")) "tls")) "internal") }}
+{{- $dbTlsVolume := "horizon-db-tls" }}
+
 {{- $serviceAccountName := "horizon" }}
 {{ tuple $envAll "dashboard" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
@@ -54,6 +57,11 @@ spec:
       terminationGracePeriodSeconds: {{ .Values.pod.lifecycle.termination_grace_period.horizon.timeout | default "30" }}
       initContainers:
 {{ tuple $envAll "dashboard" $mounts_horizon_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+{{- if $envAll.Values.manifests.certificates }}
+{{- $destUid := default (default 0 (index (default (dict) (index (dict "envAll" $envAll "application" "horizon" | include "helm-toolkit.snippets.kubernetes_pod_security_context" | fromYaml) "securityContext")) "runAsUser")) (index (default (dict) (index (dict "envAll" $envAll "application" "horizon" "container" "horizon" | include "helm-toolkit.snippets.kubernetes_container_security_context" | fromYaml) "securityContext")) "runAsUser") -}}
+{{- $destGid := default (default 0 (index (default (dict) (index (dict "envAll" $envAll "application" "horizon" | include "helm-toolkit.snippets.kubernetes_pod_security_context" | fromYaml) "securityContext")) "runAsGroup")) (index (default (dict) (index (dict "envAll" $envAll "application" "horizon" "container" "horizon" | include "helm-toolkit.snippets.kubernetes_container_security_context" | fromYaml) "securityContext")) "runAsGroup") -}}
+{{- dict "uid" $destUid "gid" $destGid "tlsSecret" $dbTlsSecret "targetVolume" $dbTlsVolume | include "helm-toolkit.snippets.tls_owner_fix_init_container" | indent 8 }}
+{{- end }}
       containers:
         - name: horizon
 {{ tuple $envAll "horizon" | include "helm-toolkit.snippets.image" | indent 10 }}
@@ -129,8 +137,12 @@ spec:
               subPath: {{ base $policyFile }}
               readOnly: true
             {{- end }}
+{{- if $envAll.Values.manifests.certificates }}
+            - name: {{ $dbTlsVolume }}
+              mountPath: /etc/mysql/certs
+              readOnly: true
+{{- end }}
 {{- dict "enabled" $envAll.Values.manifests.certificates "name" $envAll.Values.secrets.tls.dashboard.dashboard.internal "path" "/etc/openstack-dashboard/certs" | include "helm-toolkit.snippets.tls_volume_mount" | indent 12 }}
-{{- dict "enabled" $envAll.Values.manifests.certificates "name" $envAll.Values.endpoints.oslo_db.auth.admin.secret.tls.internal "path" "/etc/mysql/certs" | include "helm-toolkit.snippets.tls_volume_mount" | indent 12 }}
 {{ if $mounts_horizon.volumeMounts }}{{ toYaml $mounts_horizon.volumeMounts | indent 12 }}{{ end }}
       volumes:
         - name: pod-tmp
@@ -147,7 +159,11 @@ spec:
           secret:
             secretName: horizon-etc
             defaultMode: 0444
-{{- dict "enabled" $envAll.Values.manifests.certificates "name" $envAll.Values.endpoints.oslo_db.auth.admin.secret.tls.internal | include "helm-toolkit.snippets.tls_volume" | indent 8 }}
+{{- if $envAll.Values.manifests.certificates }}
+        - name: {{ $dbTlsVolume }}
+          emptyDir: {}
+{{- dict "enabled" $envAll.Values.manifests.certificates "name" $dbTlsSecret | include "helm-toolkit.snippets.tls_volume" | indent 8 }}
+{{- end }}
 {{- dict "enabled" $envAll.Values.manifests.certificates "name" $envAll.Values.secrets.tls.dashboard.dashboard.internal | include "helm-toolkit.snippets.tls_volume" | indent 8 }}
 {{ if $mounts_horizon.volumes }}{{ toYaml $mounts_horizon.volumes | indent 8 }}{{ end }}
 {{- end }}

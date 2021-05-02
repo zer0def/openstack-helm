@@ -18,6 +18,9 @@ limitations under the License.
 {{- $mounts_horizon_db_sync := .Values.pod.mounts.horizon_db_sync.horizon_db_sync }}
 {{- $mounts_horizon_db_sync_init := .Values.pod.mounts.horizon_db_sync.init_container }}
 
+{{- $dbTlsSecret := default (default "" (index $envAll.Values.endpoints.oslo_db "tlsSecret")) (index (default (dict) (index (default (dict) (index $envAll.Values.endpoints.oslo_db.auth.admin "secret")) "tls")) "internal") }}
+{{- $dbTlsVolume := "db-tls" }}
+
 {{- $serviceAccountName := "horizon-db-sync" }}
 {{ tuple $envAll "db_sync" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
@@ -42,6 +45,11 @@ spec:
         {{ .Values.labels.job.node_selector_key }}: {{ .Values.labels.job.node_selector_value }}
       initContainers:
 {{ tuple $envAll "db_sync" $mounts_horizon_db_sync_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+{{- if $envAll.Values.manifests.certificates }}
+{{- $destUid := default (default 0 (index (default (dict) (index (dict "envAll" $envAll "application" "db_sync" | include "helm-toolkit.snippets.kubernetes_pod_security_context" | fromYaml) "securityContext")) "runAsUser")) (index (default (dict) (index (dict "envAll" $envAll "application" "db_sync" "container" "horizon_db_sync" | include "helm-toolkit.snippets.kubernetes_container_security_context" | fromYaml) "securityContext")) "runAsUser") -}}
+{{- $destGid := default (default 0 (index (default (dict) (index (dict "envAll" $envAll "application" "db_sync" | include "helm-toolkit.snippets.kubernetes_pod_security_context" | fromYaml) "securityContext")) "runAsGroup")) (index (default (dict) (index (dict "envAll" $envAll "application" "db_sync" "container" "horizon_db_sync" | include "helm-toolkit.snippets.kubernetes_container_security_context" | fromYaml) "securityContext")) "runAsGroup") -}}
+{{- dict "uid" $destUid "gid" $destGid "tlsSecret" $dbTlsSecret "targetVolume" $dbTlsVolume | include "helm-toolkit.snippets.tls_owner_fix_init_container" | indent 8 }}
+{{- end }}
       containers:
         - name: horizon-db-sync
 {{ tuple $envAll "horizon_db_sync" | include "helm-toolkit.snippets.image" | indent 10 }}
@@ -62,7 +70,11 @@ spec:
             mountPath: /tmp/manage.py
             subPath: manage.py
             readOnly: true
-{{- dict "enabled" $envAll.Values.manifests.certificates "name" $envAll.Values.endpoints.oslo_db.auth.admin.secret.tls.internal "path" "/etc/mysql/certs" | include "helm-toolkit.snippets.tls_volume_mount" | indent 10 }}
+{{- if $envAll.Values.manifests.certificates }}
+          - name: {{ $dbTlsVolume }}
+            mountPath: /etc/mysql/certs
+            readOnly: true
+{{- end }}
 {{ if $mounts_horizon_db_sync.volumeMounts }}{{ toYaml $mounts_horizon_db_sync.volumeMounts | indent 10 }}{{ end }}
       volumes:
       - name: horizon-etc
@@ -73,6 +85,10 @@ spec:
         configMap:
           name: horizon-bin
           defaultMode: 0555
-{{- dict "enabled" $envAll.Values.manifests.certificates "name" $envAll.Values.endpoints.oslo_db.auth.admin.secret.tls.internal | include "helm-toolkit.snippets.tls_volume" | indent 6 }}
+{{- if $envAll.Values.manifests.certificates }}
+      - name: {{ $dbTlsVolume }}
+        emptyDir: {}
+{{- dict "enabled" $envAll.Values.manifests.certificates "name" $dbTlsSecret | include "helm-toolkit.snippets.tls_volume" | indent 6 }}
+{{- end }}
 {{ if $mounts_horizon_db_sync.volumes }}{{ toYaml $mounts_horizon_db_sync.volumes | indent 6 }}{{ end }}
 {{- end }}
