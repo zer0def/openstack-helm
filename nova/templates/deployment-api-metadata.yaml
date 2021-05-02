@@ -28,6 +28,9 @@ tcpSocket:
 {{- $mounts_nova_api_metadata := .Values.pod.mounts.nova_api_metadata.nova_api_metadata }}
 {{- $mounts_nova_api_metadata_init := .Values.pod.mounts.nova_api_metadata.init_container }}
 
+{{- $dbTlsSecret := default (default "" (index .Values.endpoints.oslo_db "tlsSecret")) (index (default (dict) (index (default (dict) (index .Values.endpoints.oslo_db.auth.admin "secret")) "tls")) "internal") }}
+{{- $dbTlsVolume := "nova-db-tls" }}
+
 {{- $serviceAccountName := "nova-api-metadata" }}
 {{ tuple $envAll "api_metadata" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
@@ -64,6 +67,11 @@ spec:
       terminationGracePeriodSeconds: {{ .Values.pod.lifecycle.termination_grace_period.metadata.timeout | default "30" }}
       initContainers:
 {{ tuple $envAll "api_metadata" $mounts_nova_api_metadata_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+{{- if .Values.manifests.certificates }}
+{{- $destUid := default (default 0 (index (default (dict) (index (dict "envAll" $envAll "application" "nova" | include "helm-toolkit.snippets.kubernetes_pod_security_context" | fromYaml) "securityContext")) "runAsUser")) (index (default (dict) (index (dict "envAll" $envAll "application" "nova" "container" "nova_api" | include "helm-toolkit.snippets.kubernetes_container_security_context" | fromYaml) "securityContext")) "runAsUser") -}}
+{{- $destGid := default (default 0 (index (default (dict) (index (dict "envAll" $envAll "application" "nova" | include "helm-toolkit.snippets.kubernetes_pod_security_context" | fromYaml) "securityContext")) "runAsGroup")) (index (default (dict) (index (dict "envAll" $envAll "application" "nova" "container" "nova_api" | include "helm-toolkit.snippets.kubernetes_container_security_context" | fromYaml) "securityContext")) "runAsGroup") -}}
+{{- dict "uid" $destUid "gid" $destGid "tlsSecret" $dbTlsSecret "targetVolume" $dbTlsVolume | include "helm-toolkit.snippets.tls_owner_fix_init_container" | indent 8 }}
+{{- end }}
         - name: nova-api-metadata-init
 {{ tuple $envAll "nova_api" | include "helm-toolkit.snippets.image" | indent 10 }}
 {{ tuple $envAll $envAll.Values.pod.resources.api_metadata | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
@@ -166,6 +174,10 @@ spec:
             - name: pod-shared
               mountPath: /tmp/pod-shared
               readOnly: true
+            - name: logs-apache
+              mountPath: /var/log/apache2
+            - name: run-apache
+              mountPath: /var/run/apache2
             {{- if .Values.manifests.certificates_pod }}
             - name: wsgi-nova
               mountPath: /var/www/cgi-bin/nova
@@ -178,7 +190,11 @@ spec:
               subPath: mpm_event.conf
               readOnly: true
             {{- end }}
-{{- dict "enabled" .Values.manifests.certificates "name" .Values.endpoints.oslo_db.auth.admin.secret.tls.internal "path" "/etc/mysql/certs" | include "helm-toolkit.snippets.tls_volume_mount" | indent 12 }}
+            {{- if .Values.manifests.certificates }}
+            - name: {{ $dbTlsVolume }}
+              mountPath: /etc/mysql/certs
+              readOnly: true
+            {{- end }}
 {{- dict "enabled" .Values.manifests.certificates "name" .Values.secrets.tls.compute_metadata.metadata.internal "path" "/etc/nova/certs" | include "helm-toolkit.snippets.tls_volume_mount" | indent 12 }}
 {{- dict "enabled" .Values.manifests.certificates "name" .Values.endpoints.oslo_messaging.auth.admin.secret.tls.internal "path" "/etc/rabbitmq/certs" | include "helm-toolkit.snippets.tls_volume_mount" | indent 12 }}
 {{ if $mounts_nova_api_metadata.volumeMounts }}{{ toYaml $mounts_nova_api_metadata.volumeMounts | indent 12 }}{{ end }}
@@ -199,7 +215,15 @@ spec:
             defaultMode: 0444
         - name: pod-shared
           emptyDir: {}
-{{- dict "enabled" .Values.manifests.certificates "name" .Values.endpoints.oslo_db.auth.admin.secret.tls.internal | include "helm-toolkit.snippets.tls_volume" | indent 8 }}
+        - name: logs-apache
+          emptyDir: {}
+        - name: run-apache
+          emptyDir: {}
+        {{- if .Values.manifests.certificates }}
+        - name: {{ $dbTlsVolume }}
+          emptyDir: {}
+{{- dict "enabled" .Values.manifests.certificates "name" $dbTlsSecret | include "helm-toolkit.snippets.tls_volume" | indent 8 }}
+        {{- end }}
 {{- dict "enabled" .Values.manifests.certificates "name" .Values.secrets.tls.compute_metadata.metadata.internal | include "helm-toolkit.snippets.tls_volume" | indent 8 }}
 {{- dict "enabled" .Values.manifests.certificates "name" .Values.endpoints.oslo_messaging.auth.admin.secret.tls.internal | include "helm-toolkit.snippets.tls_volume" | indent 8 }}
 {{ if $mounts_nova_api_metadata.volumes }}{{ toYaml $mounts_nova_api_metadata.volumes | indent 8 }}{{ end }}

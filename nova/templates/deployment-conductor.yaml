@@ -41,6 +41,9 @@ exec:
 {{- $mounts_nova_conductor := .Values.pod.mounts.nova_conductor.nova_conductor }}
 {{- $mounts_nova_conductor_init := .Values.pod.mounts.nova_conductor.init_container }}
 
+{{- $dbTlsSecret := default (default "" (index $envAll.Values.endpoints.oslo_db "tlsSecret")) (index (default (dict) (index (default (dict) (index $envAll.Values.endpoints.oslo_db.auth.admin "secret")) "tls")) "internal") }}
+{{- $dbTlsVolume := "nova-db-tls" }}
+
 {{- $serviceAccountName := "nova-conductor" }}
 {{ tuple $envAll "conductor" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
@@ -76,6 +79,11 @@ spec:
         {{ .Values.labels.conductor.node_selector_key }}: {{ .Values.labels.conductor.node_selector_value }}
       initContainers:
 {{ tuple $envAll "conductor" $mounts_nova_conductor_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+{{- if $envAll.Values.manifests.certificates }}
+{{- $destUid := default (default 0 (index (default (dict) (index (dict "envAll" $envAll "application" "nova" | include "helm-toolkit.snippets.kubernetes_pod_security_context" | fromYaml) "securityContext")) "runAsUser")) (index (default (dict) (index (dict "envAll" $envAll "application" "nova" "container" "nova_conductor" | include "helm-toolkit.snippets.kubernetes_container_security_context" | fromYaml) "securityContext")) "runAsUser") -}}
+{{- $destGid := default (default 0 (index (default (dict) (index (dict "envAll" $envAll "application" "nova" | include "helm-toolkit.snippets.kubernetes_pod_security_context" | fromYaml) "securityContext")) "runAsGroup")) (index (default (dict) (index (dict "envAll" $envAll "application" "nova" "container" "nova_conductor" | include "helm-toolkit.snippets.kubernetes_container_security_context" | fromYaml) "securityContext")) "runAsGroup") -}}
+{{- dict "uid" $destUid "gid" $destGid "tlsSecret" $dbTlsSecret "targetVolume" $dbTlsVolume | include "helm-toolkit.snippets.tls_owner_fix_init_container" | indent 8 }}
+{{- end }}
       containers:
         - name: nova-conductor
 {{ tuple $envAll "nova_conductor" | include "helm-toolkit.snippets.image" | indent 10 }}
@@ -120,8 +128,12 @@ spec:
               subPath: policy.yaml
               readOnly: true
 {{- dict "enabled" $envAll.Values.manifests.certificates "name" $envAll.Values.secrets.tls.compute.osapi.internal "path" "/etc/nova/certs" "certs" (tuple "ca.crt") | include "helm-toolkit.snippets.tls_volume_mount" | indent 12 }}
-{{- dict "enabled" $envAll.Values.manifests.certificates "name" $envAll.Values.endpoints.oslo_db.auth.admin.secret.tls.internal "path" "/etc/mysql/certs" | include "helm-toolkit.snippets.tls_volume_mount" | indent 12 }}
 {{- dict "enabled" $envAll.Values.manifests.certificates "name" $envAll.Values.endpoints.oslo_messaging.auth.admin.secret.tls.internal "path" "/etc/rabbitmq/certs" | include "helm-toolkit.snippets.tls_volume_mount" | indent 12 }}
+{{- if $envAll.Values.manifests.certificates }}
+            - name: {{ $dbTlsVolume }}
+              mountPath: /etc/mysql/certs
+              readOnly: true
+{{- end }}
 {{ if $mounts_nova_conductor.volumeMounts }}{{ toYaml $mounts_nova_conductor.volumeMounts | indent 12 }}{{ end }}
       volumes:
         - name: pod-tmp
@@ -135,7 +147,11 @@ spec:
             secretName: nova-etc
             defaultMode: 0444
 {{- dict "enabled" $envAll.Values.manifests.certificates "name" $envAll.Values.secrets.tls.compute.osapi.internal | include "helm-toolkit.snippets.tls_volume" | indent 8 }}
-{{- dict "enabled" $envAll.Values.manifests.certificates "name" $envAll.Values.endpoints.oslo_db.auth.admin.secret.tls.internal | include "helm-toolkit.snippets.tls_volume" | indent 8 }}
 {{- dict "enabled" $envAll.Values.manifests.certificates "name" $envAll.Values.endpoints.oslo_messaging.auth.admin.secret.tls.internal | include "helm-toolkit.snippets.tls_volume" | indent 8 }}
+{{- if $envAll.Values.manifests.certificates }}
+        - name: {{ $dbTlsVolume }}
+          emptyDir: {}
+{{- dict "enabled" $envAll.Values.manifests.certificates "name" $dbTlsSecret | include "helm-toolkit.snippets.tls_volume" | indent 8 }}
+{{- end }}
 {{ if $mounts_nova_conductor.volumes }}{{ toYaml $mounts_nova_conductor.volumes | indent 8 }}{{ end }}
 {{- end }}

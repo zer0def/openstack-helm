@@ -15,6 +15,9 @@ limitations under the License.
 {{- if .Values.manifests.job_cell_setup }}
 {{- $envAll := . }}
 
+{{- $dbTlsSecret := default (default "" (index .Values.endpoints.oslo_db "tlsSecret")) (index (default (dict) (index (default (dict) (index .Values.endpoints.oslo_db.auth.admin "secret")) "tls")) "internal") }}
+{{- $dbTlsVolume := "db-tls" }}
+
 {{- $serviceAccountName := "nova-cell-setup" }}
 {{ tuple $envAll "cell_setup" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
@@ -38,12 +41,17 @@ spec:
         {{ .Values.labels.job.node_selector_key }}: {{ .Values.labels.job.node_selector_value }}
       initContainers:
 {{ tuple $envAll "cell_setup" list | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+{{- if .Values.manifests.certificates }}
+{{- $destUid := default 0 (index (default (dict) (index (dict "envAll" $envAll "application" "nova_cell_setup" | include "helm-toolkit.snippets.kubernetes_pod_security_context" | fromYaml) "securityContext")) "runAsUser") -}}
+{{- $destGid := default 0 (index (default (dict) (index (dict "envAll" $envAll "application" "nova_cell_setup" | include "helm-toolkit.snippets.kubernetes_pod_security_context" | fromYaml) "securityContext")) "runAsGroup") -}}
+{{- dict "uid" $destUid "gid" $destGid "tlsSecret" $dbTlsSecret "targetVolume" $dbTlsVolume | include "helm-toolkit.snippets.tls_owner_fix_init_container" | indent 8 }}
+{{- end }}
         - name: nova-cell-setup-init
 {{ tuple $envAll "nova_cell_setup_init" | include "helm-toolkit.snippets.image" | indent 10 }}
 {{ tuple $envAll $envAll.Values.pod.resources.jobs.cell_setup | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
 {{ dict "envAll" $envAll "application" "nova_cell_setup" "container" "nova_cell_setup_init" | include "helm-toolkit.snippets.kubernetes_container_security_context" | indent 10 }}
           env:
-{{- with $env := dict "ksUserSecret" $envAll.Values.secrets.identity.admin "useCA" .Values.manifests.certificates }}
+{{- with $env := dict "ksUserSecret" $envAll.Values.secrets.identity.admin "useCA" (index $envAll.Values.endpoints.identity.auth (default "admin" (index (default (dict) (index $envAll.Values "bootstrap")) "ks_user")) "cacert") }}
 {{- include "helm-toolkit.snippets.keystone_openrc_env_vars" $env | indent 12 }}
 {{- end }}
           command:
@@ -55,7 +63,9 @@ spec:
               mountPath: /tmp/cell-setup-init.sh
               subPath: cell-setup-init.sh
               readOnly: true
+{{- if and .Values.manifests.certificates (index .Values.endpoints.identity.auth (default "admin" (index (default (dict) (index .Values "bootstrap")) "ks_user")) "cacert") }}
 {{- dict "enabled" .Values.manifests.certificates "name" .Values.secrets.tls.compute.osapi.internal (tuple "ca.crt") | include "helm-toolkit.snippets.tls_volume_mount" | indent 12 }}
+{{- end }}
       containers:
         - name: nova-cell-setup
 {{ tuple $envAll "nova_cell_setup" | include "helm-toolkit.snippets.image" | indent 10 }}
@@ -86,7 +96,11 @@ spec:
               mountPath: /etc/nova/policy.yaml
               subPath: policy.yaml
               readOnly: true
-{{- dict "enabled" .Values.manifests.certificates "name" .Values.endpoints.oslo_db.auth.admin.secret.tls.internal "path" "/etc/mysql/certs" | include "helm-toolkit.snippets.tls_volume_mount" | indent 12 }}
+{{- if .Values.manifests.certificates }}
+            - name: {{ $dbTlsVolume }}
+              mountPath: /etc/mysql/certs
+              readOnly: true
+{{- end }}
       volumes:
         - name: pod-tmp
           emptyDir: {}
@@ -100,6 +114,10 @@ spec:
           configMap:
             name: nova-bin
             defaultMode: 0555
-{{- dict "enabled" .Values.manifests.certificates "name" .Values.endpoints.oslo_db.auth.admin.secret.tls.internal | include "helm-toolkit.snippets.tls_volume" | indent 8 }}
+{{- if .Values.manifests.certificates }}
+        - name: {{ $dbTlsVolume }}
+          emptyDir: {}
+{{- dict "enabled" .Values.manifests.certificates "name" $dbTlsSecret | include "helm-toolkit.snippets.tls_volume" | indent 8 }}
+{{- end }}
 {{- dict "enabled" .Values.manifests.certificates "name" .Values.secrets.tls.compute.osapi.internal | include "helm-toolkit.snippets.tls_volume" | indent 8 }}
 {{- end }}

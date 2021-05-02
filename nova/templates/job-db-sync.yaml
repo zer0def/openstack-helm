@@ -35,8 +35,9 @@ env:
 {{- if .Values.manifests.job_db_sync }}
 {{- $podEnvVars := include "nova.templates._job_db_sync.env_vars" (tuple .) | toString | fromYaml }}
 {{- $dbSyncJob := dict "envAll" . "serviceName" "nova" "podVolMounts" .Values.pod.mounts.nova_db_sync.nova_db_sync.volumeMounts "podVols" .Values.pod.mounts.nova_db_sync.nova_db_sync.volumes "podEnvVars" $podEnvVars.env -}}
+{{- $dbTlsSecret := default (default "" (index .Values.endpoints.oslo_db "tlsSecret")) (index (default (dict) (index (default (dict) (index .Values.endpoints.oslo_db.auth.admin "secret")) "tls")) "internal") }}
 {{- if .Values.manifests.certificates -}}
-{{- $_ := set $dbSyncJob "dbAdminTlsSecret" .Values.endpoints.oslo_db.auth.admin.secret.tls.internal -}}
+{{- $_ := set $dbSyncJob "dbAdminTlsSecret" $dbTlsSecret -}}
 {{- end -}}
 {{ $dbSyncJob | include "helm-toolkit.manifests.job_db_sync" }}
 {{- end }}

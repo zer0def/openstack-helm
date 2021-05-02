@@ -28,6 +28,9 @@ tcpSocket:
 {{- $mounts_nova_novncproxy := .Values.pod.mounts.nova_novncproxy.nova_novncproxy }}
 {{- $mounts_nova_novncproxy_init := .Values.pod.mounts.nova_novncproxy.init_novncproxy }}
 
+{{- $dbTlsSecret := default (default "" (index .Values.endpoints.oslo_db "tlsSecret")) (index (default (dict) (index (default (dict) (index .Values.endpoints.oslo_db.auth.admin "secret")) "tls")) "internal") }}
+{{- $dbTlsVolume := "nova-db-tls" }}
+
 {{- $serviceAccountName := "nova-novncproxy" }}
 {{ tuple $envAll "novncproxy" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
@@ -67,6 +70,11 @@ spec:
 {{- end }}
       initContainers:
 {{ tuple $envAll "novncproxy" $mounts_nova_novncproxy_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+{{- if .Values.manifests.certificates }}
+{{- $destUid := default (default 0 (index (default (dict) (index (dict "envAll" $envAll "application" "nova" | include "helm-toolkit.snippets.kubernetes_pod_security_context" | fromYaml) "securityContext")) "runAsUser")) (index (default (dict) (index (dict "envAll" $envAll "application" "nova" "container" "nova_novncproxy" | include "helm-toolkit.snippets.kubernetes_container_security_context" | fromYaml) "securityContext")) "runAsUser") -}}
+{{- $destGid := default (default 0 (index (default (dict) (index (dict "envAll" $envAll "application" "nova" | include "helm-toolkit.snippets.kubernetes_pod_security_context" | fromYaml) "securityContext")) "runAsGroup")) (index (default (dict) (index (dict "envAll" $envAll "application" "nova" "container" "nova_novncproxy" | include "helm-toolkit.snippets.kubernetes_container_security_context" | fromYaml) "securityContext")) "runAsGroup") -}}
+{{- dict "uid" $destUid "gid" $destGid "tlsSecret" $dbTlsSecret "targetVolume" $dbTlsVolume | include "helm-toolkit.snippets.tls_owner_fix_init_container" | indent 8 }}
+{{- end }}
         - name: nova-novncproxy-init
 {{ tuple $envAll "nova_novncproxy" | include "helm-toolkit.snippets.image" | indent 10 }}
 {{ tuple $envAll $envAll.Values.pod.resources.novncproxy | include "helm-toolkit.snippets.kubernetes_resources" | indent 10 }}
@@ -139,7 +147,11 @@ spec:
               readOnly: true
             - name: pod-shared
               mountPath: /tmp/pod-shared
-{{- dict "enabled" .Values.manifests.certificates "name" .Values.endpoints.oslo_db.auth.admin.secret.tls.internal "path" "/etc/mysql/certs" | include "helm-toolkit.snippets.tls_volume_mount" | indent 12 }}
+{{- if .Values.manifests.certificates }}
+            - name: {{ $dbTlsVolume }}
+              mountPath: /etc/mysql/certs
+              readOnly: true
+{{- end }}
 {{- dict "enabled" .Values.manifests.certificates "name" .Values.secrets.tls.compute_novnc_proxy.novncproxy.internal "path" "/etc/nova/certs" | include "helm-toolkit.snippets.tls_volume_mount" | indent 12 }}
 {{- dict "enabled" .Values.manifests.certificates "name" .Values.endpoints.oslo_messaging.auth.admin.secret.tls.internal "path" "/etc/rabbitmq/certs" | include "helm-toolkit.snippets.tls_volume_mount" | indent 12 }}
 {{ if $mounts_nova_novncproxy.volumeMounts }}{{ toYaml $mounts_nova_novncproxy.volumeMounts | indent 12 }}{{ end }}
@@ -158,7 +170,11 @@ spec:
           emptyDir: {}
         - name: pod-shared
           emptyDir: {}
-{{- dict "enabled" .Values.manifests.certificates "name" .Values.endpoints.oslo_db.auth.admin.secret.tls.internal | include "helm-toolkit.snippets.tls_volume" | indent 8 }}
+{{- if .Values.manifests.certificates }}
+        - name: {{ $dbTlsVolume }}
+          emptyDir: {}
+{{- dict "enabled" .Values.manifests.certificates "name" $dbTlsSecret | include "helm-toolkit.snippets.tls_volume" | indent 8 }}
+{{- end }}
 {{- dict "enabled" .Values.manifests.certificates "name" .Values.secrets.tls.compute_novnc_proxy.novncproxy.internal | include "helm-toolkit.snippets.tls_volume" | indent 8 }}
 {{- dict "enabled" .Values.manifests.certificates "name" .Values.endpoints.oslo_messaging.auth.admin.secret.tls.internal | include "helm-toolkit.snippets.tls_volume" | indent 8 }}
 {{ if $mounts_nova_novncproxy.volumes }}{{ toYaml $mounts_nova_novncproxy.volumes | indent 8 }}{{ end }}
