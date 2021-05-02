@@ -20,6 +20,9 @@ limitations under the License.
 {{- $mounts_cinder_volume := .Values.pod.mounts.cinder_volume.cinder_volume }}
 {{- $mounts_cinder_volume_init := .Values.pod.mounts.cinder_volume.init_container }}
 
+{{- $dbTlsSecret := default (default "" (index $envAll.Values.endpoints.oslo_db "tlsSecret")) (index (default (dict) (index (default (dict) (index $envAll.Values.endpoints.oslo_db.auth.admin "secret")) "tls")) "internal") }}
+{{- $dbTlsVolume := "cinder-db-tls" }}
+
 {{- $serviceAccountName := "cinder-volume" }}
 {{ tuple $envAll "volume" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
@@ -62,6 +65,11 @@ spec:
 {{- end }}
       initContainers:
 {{ tuple $envAll "volume" $mounts_cinder_volume_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+{{- if $envAll.Values.manifests.certificates }}
+{{- $destUid := default (default 0 (index (default (dict) (index (dict "envAll" $envAll "application" "cinder_volume" | include "helm-toolkit.snippets.kubernetes_pod_security_context" | fromYaml) "securityContext")) "runAsUser")) (index (default (dict) (index (dict "envAll" $envAll "application" "cinder_volume" "container" "cinder_volume" | include "helm-toolkit.snippets.kubernetes_container_security_context" | fromYaml) "securityContext")) "runAsUser") -}}
+{{- $destGid := default (default 0 (index (default (dict) (index (dict "envAll" $envAll "application" "cinder_volume" | include "helm-toolkit.snippets.kubernetes_pod_security_context" | fromYaml) "securityContext")) "runAsGroup")) (index (default (dict) (index (dict "envAll" $envAll "application" "cinder_volume" "container" "cinder_volume" | include "helm-toolkit.snippets.kubernetes_container_security_context" | fromYaml) "securityContext")) "runAsGroup") -}}
+{{- dict "uid" $destUid "gid" $destGid "tlsSecret" $dbTlsSecret "targetVolume" $dbTlsVolume | include "helm-toolkit.snippets.tls_owner_fix_init_container" | indent 8 }}
+{{- end }}
         {{- range $name := rest (splitList "," (include "cinder.utils.ceph_backend_list" $envAll)) }}
           {{- $backend := index $envAll.Values.conf.backends $name }}
             {{- if eq $internal_ceph_backend $name }}
@@ -267,8 +275,12 @@ spec:
               {{- end }}
             {{- end }}
 {{- dict "enabled" $envAll.Values.manifests.certificates "name" $envAll.Values.secrets.tls.volume.api.internal "path" "/etc/cinder/certs" | include "helm-toolkit.snippets.tls_volume_mount" | indent 12 }}
-{{- dict "enabled" $envAll.Values.manifests.certificates "name" $envAll.Values.endpoints.oslo_db.auth.admin.secret.tls.internal "path" "/etc/mysql/certs" | include "helm-toolkit.snippets.tls_volume_mount" | indent 12 }}
 {{- dict "enabled" $envAll.Values.manifests.certificates "name" $envAll.Values.endpoints.oslo_messaging.auth.admin.secret.tls.internal "path" "/etc/rabbitmq/certs" | include "helm-toolkit.snippets.tls_volume_mount" | indent 12 }}
+{{- if $envAll.Values.manifests.certificates }}
+            - name: {{ $dbTlsVolume }}
+              mountPath: /etc/mysql/certs
+              readOnly: true
+{{- end }}
 {{ if $mounts_cinder_volume.volumeMounts }}{{ toYaml $mounts_cinder_volume.volumeMounts | indent 12 }}{{ end }}
       volumes:
         - name: pod-tmp
@@ -329,8 +341,12 @@ spec:
           hostPath:
             path: /sys
         {{- end }}
-{{- dict "enabled" $envAll.Values.manifests.certificates "name" $envAll.Values.endpoints.oslo_db.auth.admin.secret.tls.internal | include "helm-toolkit.snippets.tls_volume" | indent 8 }}
 {{- dict "enabled" $envAll.Values.manifests.certificates "name" $envAll.Values.secrets.tls.volume.api.internal | include "helm-toolkit.snippets.tls_volume" | indent 8 }}
 {{- dict "enabled" $envAll.Values.manifests.certificates "name" $envAll.Values.endpoints.oslo_messaging.auth.admin.secret.tls.internal | include "helm-toolkit.snippets.tls_volume" | indent 8 }}
+{{- if $envAll.Values.manifests.certificates }}
+        - name: {{ $dbTlsVolume }}
+          emptyDir: {}
+{{- dict "enabled" $envAll.Values.manifests.certificates "name" $dbTlsSecret | include "helm-toolkit.snippets.tls_volume" | indent 8 }}
+{{- end }}
 {{ if $mounts_cinder_volume.volumes }}{{ toYaml $mounts_cinder_volume.volumes | indent 8 }}{{ end }}
 {{- end }}

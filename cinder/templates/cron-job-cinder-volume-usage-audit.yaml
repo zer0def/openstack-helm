@@ -18,6 +18,9 @@ limitations under the License.
 {{- $mounts_cinder_volume_usage_audit := .Values.pod.mounts.cinder_volume_usage_audit.cinder_volume_usage_audit }}
 {{- $mounts_cinder_volume_usage_audit_init := .Values.pod.mounts.cinder_volume_usage_audit.init_container }}
 
+{{- $dbTlsSecret := default (default "" (index $envAll.Values.endpoints.oslo_db "tlsSecret")) (index (default (dict) (index (default (dict) (index $envAll.Values.endpoints.oslo_db.auth.admin "secret")) "tls")) "internal") }}
+{{- $dbTlsVolume := "db-tls" }}
+
 {{- $serviceAccountName := "cinder-volume-usage-audit" }}
 {{ tuple $envAll "volume_usage_audit" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
@@ -54,6 +57,11 @@ spec:
             {{ .Values.labels.job.node_selector_key }}: {{ .Values.labels.job.node_selector_value }}
           initContainers:
 {{ tuple $envAll "volume_usage_audit" $mounts_cinder_volume_usage_audit_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 12 }}
+{{- if $envAll.Values.manifests.certificates }}
+{{- $destUid := default 0 (index (default (dict) (index (dict "envAll" $envAll "application" "volume_usage_audit" | include "helm-toolkit.snippets.kubernetes_pod_security_context" | fromYaml) "securityContext")) "runAsUser") -}}
+{{- $destGid := default 0 (index (default (dict) (index (dict "envAll" $envAll "application" "volume_usage_audit" | include "helm-toolkit.snippets.kubernetes_pod_security_context" | fromYaml) "securityContext")) "runAsGroup") -}}
+{{- dict "uid" $destUid "gid" $destGid "tlsSecret" $dbTlsSecret "targetVolume" $dbTlsVolume | include "helm-toolkit.snippets.tls_owner_fix_init_container" | indent 12 }}
+{{- end }}
           containers:
             - name: cinder-volume-usage-audit
 {{ tuple $envAll "cinder_volume_usage_audit" | include "helm-toolkit.snippets.image" | indent 14 }}
@@ -80,7 +88,11 @@ spec:
                   mountPath: /tmp/volume-usage-audit.sh
                   subPath: volume-usage-audit.sh
                   readOnly: true
-{{- dict "enabled" $envAll.Values.manifests.certificates "name" $envAll.Values.endpoints.oslo_db.auth.admin.secret.tls.internal "path" "/etc/mysql/certs" | include "helm-toolkit.snippets.tls_volume_mount" | indent 16 }}
+{{- if $envAll.Values.manifests.certificates }}
+                - name: {{ $dbTlsVolume }}
+                  mountPath: /etc/mysql/certs
+                  readOnly: true
+{{- end }}
 {{ if $mounts_cinder_volume_usage_audit.volumeMounts }}{{ toYaml $mounts_cinder_volume_usage_audit.volumeMounts | indent 16 }}{{ end }}
           volumes:
             - name: pod-tmp
@@ -95,6 +107,10 @@ spec:
               configMap:
                 name: cinder-bin
                 defaultMode: 0555
-{{- dict "enabled" $envAll.Values.manifests.certificates "name" $envAll.Values.endpoints.oslo_db.auth.admin.secret.tls.internal | include "helm-toolkit.snippets.tls_volume" | indent 12 }}
+{{- if $envAll.Values.manifests.certificates }}
+            - name: {{ $dbTlsVolume }}
+              emptyDir: {}
+{{- dict "enabled" $envAll.Values.manifests.certificates "name" $dbTlsSecret | include "helm-toolkit.snippets.tls_volume" | indent 12 }}
+{{- end }}
 {{ if $mounts_cinder_volume_usage_audit.volumes }}{{ toYaml $mounts_cinder_volume_usage_audit.volumes | indent 12 }}{{ end }}
 {{- end }}
