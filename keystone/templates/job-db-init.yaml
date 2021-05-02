@@ -21,8 +21,9 @@ helm.sh/hook-weight: "-5"
 
 {{- if .Values.manifests.job_db_init }}
 {{- $dbInitJob := dict "envAll" . "serviceName" "keystone" "jobAnnotations" (include "metadata.annotations.job.db_init" . | fromYaml) -}}
+{{- $dbTlsSecret := default (default "" (index .Values.endpoints.oslo_db "tlsSecret")) (index (default (dict) (index (default (dict) (index .Values.endpoints.oslo_db.auth.admin "secret")) "tls")) "internal") -}}
 {{- if .Values.manifests.certificates -}}
-{{- $_ := set $dbInitJob "dbAdminTlsSecret" .Values.endpoints.oslo_db.auth.admin.secret.tls.internal -}}
+{{- $_ := set $dbInitJob "dbAdminTlsSecret" $dbTlsSecret -}}
 {{- end -}}
 {{ $dbInitJob | include "helm-toolkit.manifests.job_db_init_mysql" }}
 {{- end }}

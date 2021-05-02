@@ -49,7 +49,6 @@ volumeMounts:
   - name: keystone-fernet-keys
     mountPath: {{ $envAll.Values.conf.keystone.fernet_tokens.key_repository }}
     readOnly: true
-{{- dict "enabled" $envAll.Values.manifests.certificates "name" $envAll.Values.endpoints.oslo_db.auth.admin.secret.tls.internal "path" "/etc/mysql/certs" | include "helm-toolkit.snippets.tls_volume_mount" | indent 2 }}
 {{- dict "enabled" $envAll.Values.manifests.certificates "name" $envAll.Values.endpoints.oslo_messaging.auth.admin.secret.tls.internal "path" "/etc/rabbitmq/certs" | include "helm-toolkit.snippets.tls_volume_mount" | indent 2 }}
 {{- end }}
 
@@ -59,17 +58,17 @@ volumes:
   - name: keystone-fernet-keys
     secret:
       secretName: keystone-fernet-keys
-{{- dict "enabled" $envAll.Values.manifests.certificates "name" $envAll.Values.endpoints.oslo_db.auth.admin.secret.tls.internal | include "helm-toolkit.snippets.tls_volume" | indent 2 }}
 {{- dict "enabled" $envAll.Values.manifests.certificates "name" $envAll.Values.endpoints.oslo_messaging.auth.admin.secret.tls.internal | include "helm-toolkit.snippets.tls_volume" | indent 2 }}
 {{- end }}
 
 {{- if .Values.manifests.job_db_sync }}
+{{- $dbTlsSecret := default (default "" (index .Values.endpoints.oslo_db "tlsSecret")) (index (default (dict) (index (default (dict) (index .Values.endpoints.oslo_db.auth.admin "secret")) "tls")) "internal") -}}
 {{- $local := dict "podVolMounts" false "podVols" false -}}
 {{- if eq .Values.conf.keystone.token.provider "fernet" }}
 {{- $_ := set $local "podVolMounts" ( index ( tuple . | include "keystone.templates._job_db_sync.pod_vol_mounts" | toString | fromYaml ) "volumeMounts" ) }}
 {{- $_ := set $local "podVols" ( index ( tuple . | include "keystone.templates._job_db_sync.pod_vols" | toString | fromYaml ) "volumes" ) }}
 {{- end }}
 {{- $podEnvVars := tuple . | include "keystone.templates._job_db_sync.env_vars" | toString | fromYaml }}
-{{- $dbSyncJob := dict "envAll" . "serviceName" "keystone" "podVolMounts" $local.podVolMounts "podVols" $local.podVols "podEnvVars" $podEnvVars.env "jobAnnotations" (include "metadata.annotations.job.db_sync" . | fromYaml) -}}
+{{- $dbSyncJob := dict "envAll" . "serviceName" "keystone" "podVolMounts" $local.podVolMounts "podVols" $local.podVols "podEnvVars" $podEnvVars.env "dbAdminTlsSecret" $dbTlsSecret "jobAnnotations" (include "metadata.annotations.job.db_sync" . | fromYaml) -}}
 {{ $dbSyncJob | include "helm-toolkit.manifests.job_db_sync" }}
 {{- end }}
