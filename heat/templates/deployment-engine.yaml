@@ -18,6 +18,9 @@ limitations under the License.
 {{- $mounts_heat_engine := .Values.pod.mounts.heat_engine.heat_engine }}
 {{- $mounts_heat_engine_init := .Values.pod.mounts.heat_engine.init_container }}
 
+{{- $dbTlsSecret := default (default "" (index .Values.endpoints.oslo_db "tlsSecret")) (index (default (dict) (index (default (dict) (index .Values.endpoints.oslo_db.auth.admin "secret")) "tls")) "internal") }}
+{{- $dbTlsVolume := "heat-db-tls" }}
+
 {{- $serviceAccountName := "heat-engine" }}
 {{ tuple $envAll "engine" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
@@ -62,6 +65,11 @@ spec:
       terminationGracePeriodSeconds: {{ .Values.pod.lifecycle.termination_grace_period.engine.timeout | default "30" }}
       initContainers:
 {{ tuple $envAll "engine" $mounts_heat_engine_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
+{{- if .Values.manifests.certificates }}
+{{- $destUid := default (default 0 (index (default (dict) (index (dict "envAll" $envAll "application" "heat" | include "helm-toolkit.snippets.kubernetes_pod_security_context" | fromYaml) "securityContext")) "runAsUser")) (index (default (dict) (index (dict "envAll" $envAll "application" "heat" "container" "heat_engine" | include "helm-toolkit.snippets.kubernetes_container_security_context" | fromYaml) "securityContext")) "runAsUser") -}}
+{{- $destGid := default (default 0 (index (default (dict) (index (dict "envAll" $envAll "application" "heat" | include "helm-toolkit.snippets.kubernetes_pod_security_context" | fromYaml) "securityContext")) "runAsGroup")) (index (default (dict) (index (dict "envAll" $envAll "application" "heat" "container" "heat_engine" | include "helm-toolkit.snippets.kubernetes_container_security_context" | fromYaml) "securityContext")) "runAsGroup") -}}
+{{- dict "uid" $destUid "gid" $destGid "tlsSecret" $dbTlsSecret "targetVolume" $dbTlsVolume | include "helm-toolkit.snippets.tls_owner_fix_init_container" | indent 8 }}
+{{- end }}
       containers:
         - name: heat-engine
 {{ tuple $envAll "heat_engine" | include "helm-toolkit.snippets.image" | indent 10 }}
@@ -99,9 +107,13 @@ spec:
               mountPath: /etc/heat/policy.yaml
               subPath: policy.yaml
               readOnly: true
-{{- dict "enabled" $envAll.Values.manifests.certificates "name" $envAll.Values.endpoints.oslo_db.auth.admin.secret.tls.internal "path" "/etc/mysql/certs" | include "helm-toolkit.snippets.tls_volume_mount" | indent 12 }}
 {{- dict "enabled" $envAll.Values.manifests.certificates "name" $envAll.Values.secrets.tls.orchestration.api.internal "path" "/etc/heat/certs" | include "helm-toolkit.snippets.tls_volume_mount" | indent 12 }}
 {{- dict "enabled" $envAll.Values.manifests.certificates "name" $envAll.Values.endpoints.oslo_messaging.auth.admin.secret.tls.internal "path" "/etc/rabbitmq/certs" | include "helm-toolkit.snippets.tls_volume_mount" | indent 12 }}
+{{- if .Values.manifests.certificates }}
+            - name: {{ $dbTlsVolume }}
+              mountPath: /etc/mysql/certs
+              readOnly: true
+{{- end }}
 {{ if $mounts_heat_engine.volumeMounts }}{{ toYaml $mounts_heat_engine.volumeMounts | indent 12 }}{{ end }}
       volumes:
         - name: pod-tmp
@@ -116,8 +128,12 @@ spec:
           secret:
             secretName: heat-etc
             defaultMode: 0444
-{{- dict "enabled" $envAll.Values.manifests.certificates "name" $envAll.Values.endpoints.oslo_db.auth.admin.secret.tls.internal | include "helm-toolkit.snippets.tls_volume" | indent 8 }}
 {{- dict "enabled" $envAll.Values.manifests.certificates "name" $envAll.Values.secrets.tls.orchestration.api.internal | include "helm-toolkit.snippets.tls_volume" | indent 8 }}
 {{- dict "enabled" $envAll.Values.manifests.certificates "name" $envAll.Values.endpoints.oslo_messaging.auth.admin.secret.tls.internal | include "helm-toolkit.snippets.tls_volume" | indent 8 }}
+{{- if .Values.manifests.certificates }}
+        - name: {{ $dbTlsVolume }}
+          emptyDir: {}
+{{- dict "enabled" .Values.manifests.certificates "name" $dbTlsSecret | include "helm-toolkit.snippets.tls_volume" | indent 8 }}
+{{- end }}
 {{ if $mounts_heat_engine.volumes }}{{ toYaml $mounts_heat_engine.volumes | indent 8 }}{{ end }}
 {{- end }}

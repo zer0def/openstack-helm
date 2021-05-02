@@ -18,6 +18,9 @@ limitations under the License.
 {{- $mounts_heat_purge_deleted := .Values.pod.mounts.heat_purge_deleted.heat_purge_deleted }}
 {{- $mounts_heat_purge_deleted_init := .Values.pod.mounts.heat_purge_deleted.init_container }}
 
+{{- $dbTlsSecret := default (default "" (index $envAll.Values.endpoints.oslo_db "tlsSecret")) (index (default (dict) (index (default (dict) (index $envAll.Values.endpoints.oslo_db.auth.admin "secret")) "tls")) "internal") }}
+{{- $dbTlsVolume := "db-tls" }}
+
 {{- $serviceAccountName := "heat-purge-deleted" }}
 {{ tuple $envAll "purge_deleted" $serviceAccountName | include "helm-toolkit.snippets.kubernetes_pod_rbac_serviceaccount" }}
 ---
@@ -53,6 +56,11 @@ spec:
             {{ .Values.labels.job.node_selector_key }}: {{ .Values.labels.job.node_selector_value }}
           initContainers:
 {{ tuple $envAll "purge_deleted" $mounts_heat_purge_deleted_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 12 }}
+{{- if $envAll.Values.manifests.certificates }}
+{{- $destUid := default 0 (index (default (dict) (index (dict "envAll" $envAll "application" "purge_delete" | include "helm-toolkit.snippets.kubernetes_pod_security_context" | fromYaml) "securityContext")) "runAsUser") -}}
+{{- $destGid := default 0 (index (default (dict) (index (dict "envAll" $envAll "application" "purge_delete" | include "helm-toolkit.snippets.kubernetes_pod_security_context" | fromYaml) "securityContext")) "runAsGroup") -}}
+{{- dict "uid" $destUid "gid" $destGid "tlsSecret" $dbTlsSecret "targetVolume" $dbTlsVolume | include "helm-toolkit.snippets.tls_owner_fix_init_container" | indent 12 }}
+{{- end }}
           containers:
             - name: heat-purge-deleted
 {{ tuple $envAll "heat_purge_deleted" | include "helm-toolkit.snippets.image" | indent 14 }}
@@ -79,7 +87,11 @@ spec:
                 subPath: {{ base .Values.conf.heat.DEFAULT.log_config_append }}
                 readOnly: true
               {{ end }}
-{{- dict "enabled" $envAll.Values.manifests.certificates "name" $envAll.Values.endpoints.oslo_db.auth.admin.secret.tls.internal "path" "/etc/mysql/certs" | include "helm-toolkit.snippets.tls_volume_mount" | indent 14 }}
+{{- if $envAll.Values.manifests.certificates }}
+              - name: {{ $dbTlsVolume }}
+                mountPath: /etc/mysql/certs
+                readOnly: true
+{{- end }}
 {{ if $mounts_heat_purge_deleted.volumeMounts }}{{ toYaml $mounts_heat_purge_deleted.volumeMounts | indent 14 }}{{ end }}
           volumes:
             - name: pod-tmp
@@ -90,7 +102,11 @@ spec:
               secret:
                 secretName: heat-etc
                 defaultMode: 0444
-{{- dict "enabled" $envAll.Values.manifests.certificates "name" $envAll.Values.endpoints.oslo_db.auth.admin.secret.tls.internal | include "helm-toolkit.snippets.tls_volume" | indent 12 }}
+{{- if $envAll.Values.manifests.certificates }}
+            - name: {{ $dbTlsVolume }}
+              emptyDir: {}
+{{- dict "enabled" $envAll.Values.manifests.certificates "name" $dbTlsSecret | include "helm-toolkit.snippets.tls_volume" | indent 12 }}
+{{- end }}
             - name: heat-bin
               configMap:
                 name: heat-bin
