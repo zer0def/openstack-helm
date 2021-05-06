@@ -43,7 +43,7 @@ spec:
 {{ dict "envAll" $envAll "application" "domain_manage" | include "helm-toolkit.snippets.kubernetes_pod_security_context" | indent 6 }}
       restartPolicy: OnFailure
       nodeSelector:
-        {{ .Values.labels.job.node_selector_key }}: {{ .Values.labels.job.node_selector_value }}
+        {{ .Values.labels.job.node_selector_key | quote }}: {{ .Values.labels.job.node_selector_value | quote }}
       initContainers:
 {{ tuple $envAll "domain_manage" $mounts_keystone_domain_manage_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container"  | indent 8 }}
         - name: keystone-domain-manage-init

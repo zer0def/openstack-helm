@@ -51,7 +51,7 @@ spec:
       hostNetwork: true
       hostPID: true
       nodeSelector:
-        {{ .Values.labels.health_manager.node_selector_key }}: {{ .Values.labels.health_manager.node_selector_value }}
+        {{ .Values.labels.health_manager.node_selector_key | quote }}: {{ .Values.labels.health_manager.node_selector_value | quote }}
       initContainers:
 {{ tuple $envAll "health_manager" $mounts_octavia_health_manager_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
         - name: octavia-health-manager-get-port

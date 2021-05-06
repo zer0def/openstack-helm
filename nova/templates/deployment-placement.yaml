@@ -63,7 +63,7 @@ spec:
       affinity:
 {{ tuple $envAll "nova" "placement" | include "helm-toolkit.snippets.kubernetes_pod_anti_affinity" | indent 8 }}
       nodeSelector:
-        {{ .Values.labels.placement.node_selector_key }}: {{ .Values.labels.placement.node_selector_value }}
+        {{ .Values.labels.placement.node_selector_key | quote }}: {{ .Values.labels.placement.node_selector_value | quote }}
       terminationGracePeriodSeconds: {{ .Values.pod.lifecycle.termination_grace_period.placement.timeout | default "30" }}
       initContainers:
 {{ tuple $envAll "api" $mounts_nova_placement_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}

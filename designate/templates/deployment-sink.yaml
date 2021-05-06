@@ -45,7 +45,7 @@ spec:
       affinity:
 {{ tuple $envAll "designate" "sink" | include "helm-toolkit.snippets.kubernetes_pod_anti_affinity" | indent 8 }}
       nodeSelector:
-        {{ .Values.labels.sink.node_selector_key }}: {{ .Values.labels.sink.node_selector_value }}
+        {{ .Values.labels.sink.node_selector_key | quote }}: {{ .Values.labels.sink.node_selector_value | quote }}
       initContainers:
 {{ tuple $envAll "sink" $mounts_designate_sink_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
       containers:

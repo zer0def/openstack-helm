@@ -50,7 +50,7 @@ spec:
       affinity:
 {{ tuple $envAll "nova" "compute-ironic" | include "helm-toolkit.snippets.kubernetes_pod_anti_affinity" | indent 8 }}
       nodeSelector:
-        {{ .Values.labels.agent.compute_ironic.node_selector_key }}: {{ .Values.labels.agent.compute_ironic.node_selector_value }}
+        {{ .Values.labels.agent.compute_ironic.node_selector_key | quote }}: {{ .Values.labels.agent.compute_ironic.node_selector_value | quote }}
       securityContext:
         runAsUser: 0
       hostNetwork: true

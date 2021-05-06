@@ -77,7 +77,7 @@ spec:
       serviceAccountName: {{ $serviceAccountName }}
 {{ dict "envAll" $envAll "application" "nova" | include "helm-toolkit.snippets.kubernetes_pod_security_context" | indent 6 }}
       nodeSelector:
-        {{ .Values.labels.agent.compute.node_selector_key }}: {{ .Values.labels.agent.compute.node_selector_value }}
+        {{ .Values.labels.agent.compute.node_selector_key | quote }}: {{ .Values.labels.agent.compute.node_selector_value | quote }}
       hostNetwork: true
       hostPID: true
       hostIPC: true

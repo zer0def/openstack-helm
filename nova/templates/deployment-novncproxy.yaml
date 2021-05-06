@@ -63,7 +63,7 @@ spec:
       affinity:
 {{ tuple $envAll "nova" "novnc-proxy" | include "helm-toolkit.snippets.kubernetes_pod_anti_affinity" | indent 8 }}
       nodeSelector:
-        {{ .Values.labels.novncproxy.node_selector_key }}: {{ .Values.labels.novncproxy.node_selector_value }}
+        {{ .Values.labels.novncproxy.node_selector_key | quote }}: {{ .Values.labels.novncproxy.node_selector_value | quote }}
 {{- if .Values.pod.useHostNetwork.novncproxy }}
       hostNetwork: true
       dnsPolicy: ClusterFirstWithHostNet

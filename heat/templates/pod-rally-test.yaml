@@ -32,7 +32,7 @@ metadata:
     {{ tuple $envAll | include "helm-toolkit.snippets.release_uuid" }}
 spec:
   nodeSelector:
-    {{ .Values.labels.test.node_selector_key }}: {{ .Values.labels.test.node_selector_value }}
+    {{ .Values.labels.test.node_selector_key | quote }}: {{ .Values.labels.test.node_selector_value | quote }}
   restartPolicy: Never
   serviceAccountName: {{ $serviceAccountName }}
   initContainers:

@@ -32,7 +32,7 @@ metadata:
 {{ dict "envAll" $envAll "podName" "glance-test" "containerNames" (list "init" "glance-test" "glance-test-ks-user") | include "helm-toolkit.snippets.kubernetes_mandatory_access_control_annotation" | indent 4 }}
 spec:
   nodeSelector:
-    {{ .Values.labels.test.node_selector_key }}: {{ .Values.labels.test.node_selector_value }}
+    {{ .Values.labels.test.node_selector_key | quote }}: {{ .Values.labels.test.node_selector_value | quote }}
 {{ dict "envAll" $envAll "application" "test" | include "helm-toolkit.snippets.kubernetes_pod_security_context" | indent 2 }}
   restartPolicy: Never
   serviceAccountName: {{ $serviceAccountName }}

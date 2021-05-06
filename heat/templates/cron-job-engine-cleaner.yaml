@@ -59,7 +59,7 @@ spec:
 {{ dict "envAll" $envAll "application" "engine_cleaner" | include "helm-toolkit.snippets.kubernetes_pod_security_context" | indent 10 }}
           restartPolicy: OnFailure
           nodeSelector:
-            {{ .Values.labels.job.node_selector_key }}: {{ .Values.labels.job.node_selector_value }}
+            {{ .Values.labels.job.node_selector_key | quote }}: {{ .Values.labels.job.node_selector_value | quote }}
           initContainers:
 {{ tuple $envAll "engine_cleaner" $mounts_heat_engine_cleaner_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 12 }}
 {{- if and $envAll.Values.manifests.certificates $dbTlsSecret }}

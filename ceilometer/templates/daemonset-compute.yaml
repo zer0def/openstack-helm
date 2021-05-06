@@ -50,7 +50,7 @@ spec:
       hostPID: true
       dnsPolicy: ClusterFirstWithHostNet
       nodeSelector:
-        {{ .Values.labels.compute.node_selector_key }}: {{ .Values.labels.compute.node_selector_value }}
+        {{ .Values.labels.compute.node_selector_key | quote }}: {{ .Values.labels.compute.node_selector_value | quote }}
       initContainers:
 {{ tuple $envAll "compute" $mounts_ceilometer_compute_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
       containers:

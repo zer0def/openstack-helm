@@ -49,7 +49,7 @@ spec:
 {{ dict "envAll" $envAll "application" "neutron_netns_cleanup_cron" | include "helm-toolkit.snippets.kubernetes_pod_security_context" | indent 6 }}
       serviceAccountName: {{ $serviceAccountName }}
       nodeSelector:
-        {{ .Values.labels.netns_cleanup_cron.node_selector_key }}: {{ .Values.labels.netns_cleanup_cron.node_selector_value }}
+        {{ .Values.labels.netns_cleanup_cron.node_selector_key | quote }}: {{ .Values.labels.netns_cleanup_cron.node_selector_value | quote }}
       dnsPolicy: ClusterFirstWithHostNet
       hostNetwork: true
       {{- if or ( gt .Capabilities.KubeVersion.Major "1" ) ( ge .Capabilities.KubeVersion.Minor "10" ) }}

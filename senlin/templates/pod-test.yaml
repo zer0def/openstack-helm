@@ -33,7 +33,7 @@ metadata:
 spec:
   serviceAccountName: {{ $serviceAccountName }}
   nodeSelector:
-    {{ .Values.labels.test.node_selector_key }}: {{ .Values.labels.test.node_selector_value }}
+    {{ .Values.labels.test.node_selector_key | quote }}: {{ .Values.labels.test.node_selector_value | quote }}
   restartPolicy: Never
   initContainers:
 {{ tuple $envAll "tests" $mounts_senlin_tests_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 4 }}

@@ -45,7 +45,7 @@ spec:
       affinity:
 {{ tuple $envAll "designate" "central" | include "helm-toolkit.snippets.kubernetes_pod_anti_affinity" | indent 8 }}
       nodeSelector:
-        {{ .Values.labels.central.node_selector_key }}: {{ .Values.labels.central.node_selector_value }}
+        {{ .Values.labels.central.node_selector_key | quote }}: {{ .Values.labels.central.node_selector_value | quote }}
       initContainers:
 {{ tuple $envAll "central" $mounts_designate_central_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
       containers:

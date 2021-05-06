@@ -51,7 +51,7 @@ spec:
       affinity:
 {{ tuple $envAll "aodh" "evaluator" | include "helm-toolkit.snippets.kubernetes_pod_anti_affinity" | indent 8 }}
       nodeSelector:
-        {{ .Values.labels.evaluator.node_selector_key }}: {{ .Values.labels.evaluator.node_selector_value }}
+        {{ .Values.labels.evaluator.node_selector_key | quote }}: {{ .Values.labels.evaluator.node_selector_value | quote }}
       initContainers:
 {{ tuple $envAll "evaluator" $mounts_aodh_evaluator_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
       containers:

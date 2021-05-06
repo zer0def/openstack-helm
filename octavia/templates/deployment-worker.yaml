@@ -51,7 +51,7 @@ spec:
       affinity:
 {{ tuple $envAll "octavia" "worker" | include "helm-toolkit.snippets.kubernetes_pod_anti_affinity" | indent 8 }}
       nodeSelector:
-        {{ .Values.labels.worker.node_selector_key }}: {{ .Values.labels.worker.node_selector_value }}
+        {{ .Values.labels.worker.node_selector_key | quote }}: {{ .Values.labels.worker.node_selector_value | quote }}
       initContainers:
 {{ tuple $envAll "worker" $mounts_octavia_worker_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
       containers:

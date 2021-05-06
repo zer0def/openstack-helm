@@ -33,7 +33,7 @@ metadata:
 {{ dict "envAll" $envAll "podName" "nova-test" "containerNames" (list "init" "nova-test" "nova-test-ks-user") | include "helm-toolkit.snippets.kubernetes_mandatory_access_control_annotation" | indent 4 }}
 spec:
   nodeSelector:
-    {{ .Values.labels.test.node_selector_key }}: {{ .Values.labels.test.node_selector_value }}
+    {{ .Values.labels.test.node_selector_key | quote }}: {{ .Values.labels.test.node_selector_value | quote }}
   restartPolicy: Never
   serviceAccountName: {{ $serviceAccountName }}
   initContainers:

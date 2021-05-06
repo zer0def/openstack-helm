@@ -77,7 +77,7 @@ spec:
 {{ tuple $envAll "fernet_setup" $mounts_keystone_fernet_setup_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
       restartPolicy: OnFailure
       nodeSelector:
-        {{ .Values.labels.job.node_selector_key }}: {{ .Values.labels.job.node_selector_value }}
+        {{ .Values.labels.job.node_selector_key | quote }}: {{ .Values.labels.job.node_selector_value | quote }}
       containers:
         - name: keystone-fernet-setup
 {{ tuple $envAll "keystone_fernet_setup" | include "helm-toolkit.snippets.image" | indent 10 }}

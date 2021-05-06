@@ -45,7 +45,7 @@ spec:
           serviceAccountName: {{ $serviceAccountName }}
           restartPolicy: OnFailure
           nodeSelector:
-            {{ .Values.labels.job.node_selector_key }}: {{ .Values.labels.job.node_selector_value }}
+            {{ .Values.labels.job.node_selector_key | quote }}: {{ .Values.labels.job.node_selector_value | quote }}
           initContainers:
 {{ tuple $envAll "engine_cleaner" $mounts_senlin_engine_cleaner_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 12 }}
           containers:

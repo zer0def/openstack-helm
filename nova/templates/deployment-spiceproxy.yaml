@@ -59,7 +59,7 @@ spec:
       affinity:
 {{ tuple $envAll "nova" "spice-proxy" | include "helm-toolkit.snippets.kubernetes_pod_anti_affinity" | indent 8 }}
       nodeSelector:
-        {{ .Values.labels.spiceproxy.node_selector_key }}: {{ .Values.labels.spiceproxy.node_selector_value }}
+        {{ .Values.labels.spiceproxy.node_selector_key | quote }}: {{ .Values.labels.spiceproxy.node_selector_value | quote }}
       hostNetwork: true
       dnsPolicy: ClusterFirstWithHostNet
       initContainers:

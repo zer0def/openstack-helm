@@ -45,7 +45,7 @@ spec:
       affinity:
 {{ tuple $envAll "designate" "producer" | include "helm-toolkit.snippets.kubernetes_pod_anti_affinity" | indent 8 }}
       nodeSelector:
-        {{ .Values.labels.producer.node_selector_key }}: {{ .Values.labels.producer.node_selector_value }}
+        {{ .Values.labels.producer.node_selector_key | quote }}: {{ .Values.labels.producer.node_selector_value | quote }}
       initContainers:
 {{ tuple $envAll "producer" $mounts_designate_producer_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 8 }}
       containers:

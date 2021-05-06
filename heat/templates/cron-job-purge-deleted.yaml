@@ -53,7 +53,7 @@ spec:
           serviceAccountName: {{ $serviceAccountName }}
           restartPolicy: OnFailure
           nodeSelector:
-            {{ .Values.labels.job.node_selector_key }}: {{ .Values.labels.job.node_selector_value }}
+            {{ .Values.labels.job.node_selector_key | quote }}: {{ .Values.labels.job.node_selector_value | quote }}
           initContainers:
 {{ tuple $envAll "purge_deleted" $mounts_heat_purge_deleted_init | include "helm-toolkit.snippets.kubernetes_entrypoint_init_container" | indent 12 }}
 {{- if and $envAll.Values.manifests.certificates $dbTlsSecret }}
