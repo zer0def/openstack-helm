@@ -19,7 +19,7 @@ COMMAND="${@:-start}"
 
 function start () {
 
-{{- if .Values.manifests.certificates }}
+{{- if .Values.manifests.certificates_pod }}
   for WSGI_SCRIPT in heat-wsgi-api; do
     cp -a $(type -p ${WSGI_SCRIPT}) /var/www/cgi-bin/heat/
   done
@@ -55,7 +55,7 @@ function start () {
 }
 
 function stop () {
-{{- if .Values.manifests.certificates }}
+{{- if .Values.manifests.certificates_pod }}
   {{ .Values.conf.software.apache2.binary }} -k graceful-stop
 {{- else }}
   kill -TERM 1

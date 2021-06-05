@@ -18,7 +18,7 @@ set -ex
 COMMAND="${@:-start}"
 
 function start () {
-{{- if .Values.manifests.certificates }}
+{{- if .Values.manifests.certificates_pod }}
   for WSGI_SCRIPT in cinder-wsgi; do
     cp -a $(type -p ${WSGI_SCRIPT}) /var/www/cgi-bin/cinder/
   done
@@ -54,7 +54,7 @@ function start () {
 }
 
 function stop () {
-{{- if .Values.manifests.certificates }}
+{{- if .Values.manifests.certificates_pod }}
   if [ -f /etc/apache2/envvars ]; then
     # Loading Apache2 ENV variables
     source /etc/apache2/envvars

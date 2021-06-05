@@ -111,7 +111,7 @@ spec:
               mountPath: /etc/heat/api_audit_map.conf
               subPath: api_audit_map.conf
               readOnly: true
-            {{- if .Values.manifests.certificates }}
+            {{- if .Values.manifests.certificates_pod }}
             - name: heat-etc
               mountPath: {{ .Values.conf.software.apache2.site_dir }}/heat-api-cfn.conf
               subPath: wsgi-cnf.conf

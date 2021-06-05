@@ -2806,6 +2806,7 @@ network_policy:
 
 manifests:
   certificates: false
+  certificates_pod: false
   configmap_bin: true
   configmap_etc: true
   cron_job_cell_setup: true

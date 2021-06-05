@@ -142,7 +142,7 @@ spec:
             - name: cinder-coordination
               mountPath: {{ ( split "://" .Values.conf.cinder.coordination.backend_url )._1 }}
             {{- end }}
-            {{- if .Values.manifests.certificates }}
+            {{- if .Values.manifests.certificates_pod }}
             - name: cinder-etc
               mountPath: {{ .Values.conf.software.apache2.site_dir }}/cinder-api.conf
               subPath: wsgi-cinder.conf

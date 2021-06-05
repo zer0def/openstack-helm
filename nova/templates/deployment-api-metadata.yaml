@@ -166,7 +166,7 @@ spec:
             - name: pod-shared
               mountPath: /tmp/pod-shared
               readOnly: true
-            {{- if .Values.manifests.certificates }}
+            {{- if .Values.manifests.certificates_pod }}
             - name: wsgi-nova
               mountPath: /var/www/cgi-bin/nova
             - name: nova-etc
@@ -184,7 +184,7 @@ spec:
       volumes:
         - name: pod-tmp
           emptyDir: {}
-        {{- if .Values.manifests.certificates }}
+        {{- if .Values.manifests.certificates_pod }}
         - name: wsgi-nova
           emptyDir: {}
         {{- end }}

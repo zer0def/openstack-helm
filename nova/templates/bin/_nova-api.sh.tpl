@@ -18,7 +18,7 @@ set -ex
 COMMAND="${@:-start}"
 
 function start () {
-{{- if .Values.manifests.certificates }}
+{{- if .Values.manifests.certificates_pod }}
   for WSGI_SCRIPT in nova-api-wsgi; do
     cp -a $(type -p ${WSGI_SCRIPT}) /var/www/cgi-bin/nova/
   done
@@ -55,7 +55,7 @@ function start () {
 }
 
 function stop () {
-{{- if .Values.manifests.certificates }}
+{{- if .Values.manifests.certificates_pod }}
   if [ -f /etc/apache2/envvars ]; then
     source /etc/apache2/envvars
   fi
