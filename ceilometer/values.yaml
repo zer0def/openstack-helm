@@ -1894,6 +1894,9 @@ endpoints:
       admin:
         username: rabbitmq
         password: password
+        #secret:
+        #  tls:
+        #    internal: rabbitmq-tls-direct
       ceilometer:
         username: ceilometer
         password: password
@@ -2103,6 +2106,7 @@ network_policy:
       - {}
 
 manifests:
+  certificates: false
   configmap_bin: true
   configmap_etc: true
   deployment_api: true

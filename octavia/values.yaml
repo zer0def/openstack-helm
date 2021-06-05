@@ -456,6 +456,9 @@ endpoints:
       admin:
         username: rabbitmq
         password: password
+        #secret:
+        #  tls:
+        #    internal: rabbitmq-tls-direct
       octavia:
         username: octavia
         password: password
@@ -654,6 +657,7 @@ network_policy:
       - {}
 
 manifests:
+  certificates: false
   configmap_bin: true
   configmap_etc: true
   daemonset_health_manager: true

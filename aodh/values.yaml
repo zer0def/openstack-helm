@@ -663,6 +663,9 @@ endpoints:
       admin:
         username: rabbitmq
         password: password
+        #secret:
+        #  tls:
+        #    internal: rabbitmq-tls-direct
       aodh:
         username: aodh
         password: password
@@ -704,6 +707,7 @@ network_policy:
       - {}
 
 manifests:
+  certificates: false
   configmap_bin: true
   configmap_etc: true
   cron_job_alarms_cleaner: true

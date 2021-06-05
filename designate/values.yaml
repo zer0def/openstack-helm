@@ -769,6 +769,9 @@ endpoints:
       admin:
         username: rabbitmq
         password: password
+        #secret:
+        #  tls:
+        #    internal: rabbitmq-tls-direct
       designate:
         username: designate
         password: password
@@ -801,6 +804,7 @@ endpoints:
         default: 53
 
 manifests:
+  certificates: false
   configmap_bin: true
   configmap_etc: true
   deployment_api: true
