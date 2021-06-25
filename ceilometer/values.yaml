@@ -1463,7 +1463,7 @@ conf:
     'telemetry:get_sample': ''
     'telemetry:get_samples': ''
     'telemetry:query_sample': ''
-  audit_api_map:
+  api_audit_map:
     DEFAULT:
       target_endpoint_type: None
     path_keywords:
